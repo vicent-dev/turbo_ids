@@ -34,6 +34,11 @@ func writeFileByChunks(ctx context.Context, f *os.File, s *storage) error {
 
 	c := int(c64)
 
+	if c == 0 {
+		alog.Warn("No rows found based on criteria")
+		return nil
+	}
+
 	if err != nil {
 		return err
 	}
@@ -43,11 +48,13 @@ func writeFileByChunks(ctx context.Context, f *os.File, s *storage) error {
 	// for small exports we don't need more than one goroutines
 	if c < 100 {
 		linesPerChunk = c
-	}
-
-	for i := 0; i <= maxWg; i++ {
 		wg.Add(1)
-		go writeChunk(ctx, f, i*linesPerChunk, linesPerChunk, s, &wg)
+		go writeChunk(ctx, f, 0, linesPerChunk, s, &wg)
+	} else {
+		for i := 0; i <= maxWg; i++ {
+			wg.Add(1)
+			go writeChunk(ctx, f, i*linesPerChunk, linesPerChunk, s, &wg)
+		}
 	}
 
 	wg.Wait()

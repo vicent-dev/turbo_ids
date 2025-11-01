@@ -16,6 +16,7 @@ import (
 type storage struct {
 	client         *mongo.Client
 	db, collection string
+	baseCriteria   bson.D
 	rowsCount      int
 }
 
@@ -27,10 +28,11 @@ func newStorage() (*storage, error) {
 	}
 
 	s := &storage{
-		client:     client,
-		db:         os.Getenv("MONGO_DB"),
-		collection: os.Getenv("MONGO_COLLECTION"),
-		rowsCount:  0,
+		client:       client,
+		db:           os.Getenv("MONGO_DB"),
+		collection:   os.Getenv("MONGO_COLLECTION"),
+		rowsCount:    0,
+		baseCriteria: bson.D{},
 	}
 
 	return s, nil
@@ -45,7 +47,7 @@ func (s *storage) disconnect(ctx context.Context) {
 func (s *storage) getCount(ctx context.Context) (int64, error) {
 	collection := s.client.Database(s.db).Collection(s.collection)
 
-	return collection.CountDocuments(ctx, bson.D{})
+	return collection.CountDocuments(ctx, s.baseCriteria)
 }
 
 func (s *storage) extractData(ctx context.Context, start, size int) (strings.Builder, int, error) {
@@ -58,7 +60,7 @@ func (s *storage) extractData(ctx context.Context, start, size int) (strings.Bui
 
 	cur, err := collection.Find(
 		ctx,
-		bson.D{},
+		s.baseCriteria,
 		options.Find().SetSort(bson.D{{Key: "_id", Value: 1}}).SetSkip(int64(start)).SetLimit(int64(size)),
 	)
 

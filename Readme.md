@@ -6,7 +6,7 @@ Multi thread tool to export mongodb data based on row checker.
 
 
 ## Instructions:
-- Modify base find if possible `storage::getCount` and `storage::extractData`
+- Add base criteria search in storage constructor (`newStorage` function) if needed
 - Add new function in `rowCheckers.go`
 - Modify `storage.go:78` were the rows are processed.
 - Build and run
