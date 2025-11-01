@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"strconv"
 	"sync"
 	"time"
 
@@ -50,15 +49,27 @@ func writeFileByChunks(ctx context.Context, f *os.File, s *storage) error {
 	if c < 100 {
 		linesPerChunk = c
 		wg.Add(1)
-		go writeChunk(ctx, f, 0, linesPerChunk, s, &wg)
+		go s.extractChunk(ctx, 0, linesPerChunk, &wg)
 	} else {
 		for i := 0; i <= maxWg; i++ {
 			wg.Add(1)
-			go writeChunk(ctx, f, i*linesPerChunk, linesPerChunk, s, &wg)
+			go s.extractChunk(ctx, i*linesPerChunk, linesPerChunk, &wg)
 		}
 	}
 
 	wg.Wait()
+
+	// write file
+	w := bufio.NewWriter(f)
+
+	for _, r := range s.data {
+		w.WriteString(r)
+	}
+
+	if err := w.Flush(); err != nil {
+		alog.Error(err.Error())
+		return err
+	}
 
 	totalRows := 0
 
@@ -69,26 +80,4 @@ func writeFileByChunks(ctx context.Context, f *os.File, s *storage) error {
 	alog.Info("Count records exported: %d", totalRows)
 
 	return nil
-}
-
-func writeChunk(ctx context.Context, f *os.File, start, size int, s *storage, wg *sync.WaitGroup) {
-	defer wg.Done()
-
-	sb, cr, err := s.extractData(ctx, start, size)
-
-	if err != nil {
-		alog.Error(err.Error())
-		return
-	}
-
-	w := bufio.NewWriter(f)
-	w.WriteString(sb.String())
-
-	if err := w.Flush(); err != nil {
-		alog.Error(err.Error())
-		return
-	}
-
-	chunkKey := strconv.Itoa(start) + ":" + strconv.Itoa(start+size)
-	s.rowsCount[chunkKey] = cr
 }

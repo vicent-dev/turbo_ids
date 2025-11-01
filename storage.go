@@ -5,7 +5,9 @@ import (
 	"errors"
 	"log"
 	"os"
+	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/en-vee/alog"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -18,6 +20,7 @@ type storage struct {
 	db, collection string
 	baseCriteria   bson.D
 	rowsCount      map[string]int
+	data           map[string]string
 }
 
 func newStorage() (*storage, error) {
@@ -32,6 +35,7 @@ func newStorage() (*storage, error) {
 		db:           os.Getenv("MONGO_DB"),
 		collection:   os.Getenv("MONGO_COLLECTION"),
 		rowsCount:    make(map[string]int),
+		data:         make(map[string]string),
 		baseCriteria: bson.D{},
 	}
 
@@ -50,7 +54,9 @@ func (s *storage) getCount(ctx context.Context) (int64, error) {
 	return collection.CountDocuments(ctx, s.baseCriteria)
 }
 
-func (s *storage) extractData(ctx context.Context, start, size int) (strings.Builder, int, error) {
+func (s *storage) extractChunk(ctx context.Context, start, size int, wg *sync.WaitGroup) error {
+	defer wg.Done()
+
 	alog.Info("Exporting records from %d to %d.", start, start+size)
 	chunkRowsCount := 0
 
@@ -66,6 +72,7 @@ func (s *storage) extractData(ctx context.Context, start, size int) (strings.Bui
 
 	if err != nil {
 		alog.Error(err.Error())
+		return err
 	}
 
 	defer cur.Close(ctx)
@@ -88,5 +95,9 @@ func (s *storage) extractData(ctx context.Context, start, size int) (strings.Bui
 		}
 	}
 
-	return lsb, chunkRowsCount, nil
+	chunkKey := strconv.Itoa(start) + ":" + strconv.Itoa(start+size)
+	s.rowsCount[chunkKey] = chunkRowsCount
+	s.data[chunkKey] = lsb.String()
+
+	return nil
 }
