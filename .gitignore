@@ -1,0 +1,5 @@
+.env
+data/
+exporter
+*.csv
+.vscode/
