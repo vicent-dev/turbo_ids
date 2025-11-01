@@ -17,7 +17,7 @@ type storage struct {
 	client         *mongo.Client
 	db, collection string
 	baseCriteria   bson.D
-	rowsCount      int
+	rowsCount      map[string]int
 }
 
 func newStorage() (*storage, error) {
@@ -31,7 +31,7 @@ func newStorage() (*storage, error) {
 		client:       client,
 		db:           os.Getenv("MONGO_DB"),
 		collection:   os.Getenv("MONGO_COLLECTION"),
-		rowsCount:    0,
+		rowsCount:    make(map[string]int),
 		baseCriteria: bson.D{},
 	}
 

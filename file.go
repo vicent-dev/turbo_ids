@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 
@@ -59,25 +60,35 @@ func writeFileByChunks(ctx context.Context, f *os.File, s *storage) error {
 
 	wg.Wait()
 
-	alog.Info("Count records exported: %d", s.rowsCount)
+	totalRows := 0
+
+	for _, r := range s.rowsCount {
+		totalRows += r
+	}
+
+	alog.Info("Count records exported: %d", totalRows)
 
 	return nil
 }
 
 func writeChunk(ctx context.Context, f *os.File, start, size int, s *storage, wg *sync.WaitGroup) {
 	defer wg.Done()
-	w := bufio.NewWriter(f)
 
-	if sb, cr, err := s.extractData(ctx, start, size); err == nil {
-		w.WriteString(sb.String())
-		s.rowsCount += cr
-	} else {
+	sb, cr, err := s.extractData(ctx, start, size)
+
+	if err != nil {
 		alog.Error(err.Error())
 		return
 	}
+
+	w := bufio.NewWriter(f)
+	w.WriteString(sb.String())
 
 	if err := w.Flush(); err != nil {
 		alog.Error(err.Error())
 		return
 	}
+
+	chunkKey := strconv.Itoa(start) + ":" + strconv.Itoa(start+size)
+	s.rowsCount[chunkKey] = cr
 }
