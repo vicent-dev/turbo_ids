@@ -7,8 +7,6 @@ import (
 	"github.com/en-vee/alog"
 )
 
-var rows = 0
-
 func defaultRowChecker(row map[string]any) (bool, string) {
 	if b, ok := row["bedrooms"]; ok {
 		bs := strconv.Itoa(int(row["bedrooms"].(int32)))
