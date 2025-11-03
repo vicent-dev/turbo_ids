@@ -3,7 +3,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -72,10 +71,6 @@ func (fm *filesManager) writeInPartFile(fileContent string, nThread int) {
 
 func (fm *filesManager) mergePartFiles() error {
 	var err error
-
-	if err := os.MkdirAll(fm.directory, 0755); err != nil {
-		log.Fatal(err)
-	}
 
 	path := fmt.Sprintf("%s/%s_%d.csv",
 		fm.directory,
