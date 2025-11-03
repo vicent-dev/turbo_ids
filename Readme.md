@@ -8,7 +8,7 @@ Multi thread tool to export mongodb data based on row checker.
 ## Instructions:
 - Add base criteria search in storage constructor (`newStorage` function) if needed
 - Add new function in `rowCheckers.go`
-- Modify `storage.go:78` were the rows are processed.
+- Modify `storage.go:104` were the rows are processed.
 - Build and run
 
 
