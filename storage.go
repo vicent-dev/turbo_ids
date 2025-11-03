@@ -15,6 +15,8 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
+const MAX_BATCH_SIZE = 100_000
+
 type storage struct {
 	client         *mongo.Client
 	db, collection string
@@ -54,48 +56,66 @@ func (s *storage) getCount(ctx context.Context) (int64, error) {
 	return collection.CountDocuments(ctx, s.baseCriteria)
 }
 
-func (s *storage) extractChunk(ctx context.Context, start, size int, wg *sync.WaitGroup) error {
+func (s *storage) extractChunk(ctx context.Context, start, chunkSize int, wg *sync.WaitGroup) error {
 	defer wg.Done()
 
-	alog.Info("Exporting records from %d to %d.", start, start+size)
+	lastRecordInChunk := start + chunkSize
+
+	alog.Info("Exporting records from %d to %d.", start, lastRecordInChunk)
 	chunkRowsCount := 0
 
 	var lsb strings.Builder
 
 	collection := s.client.Database(s.db).Collection(s.collection)
 
-	cur, err := collection.Find(
-		ctx,
-		s.baseCriteria,
-		options.Find().SetSort(bson.D{{Key: "_id", Value: 1}}).SetSkip(int64(start)).SetLimit(int64(size)),
-	)
+	size := int(float64(chunkSize) * 0.1) // 10% chunkSize = batch size
+	size = min(size, MAX_BATCH_SIZE)
 
-	if err != nil {
-		alog.Error(err.Error())
-		return err
-	}
+	chunkKey := strconv.Itoa(start) + ":" + strconv.Itoa(lastRecordInChunk)
 
-	defer cur.Close(ctx)
-
-	for cur.Next(ctx) {
-		var result map[string]any
-
-		if err := cur.Decode(&result); err != nil {
-			log.Fatal(err)
+	for size != 0 {
+		if os.Getenv("DEBUG_CHUNKS") == "true" {
+			alog.Info("chunk[%s] start: %d end: %d" , chunkKey , start, size)
 		}
 
-		if ok, row := simpleRowChecker(result); ok {
-			chunkRowsCount += 1
+		cur, err := collection.Find(
+			ctx,
+			s.baseCriteria,
+			options.Find().SetSort(bson.D{{Key: "_id", Value: 1}}).SetSkip(int64(start)).SetLimit(int64(size)),
+		)
 
-			if row == "" {
-				row = "\"" + (result["_id"]).(string) + "\","
+		if err != nil {
+			alog.Error(err.Error())
+			return err
+		}
+
+		for cur.Next(ctx) {
+			var result map[string]any
+
+			if err := cur.Decode(&result); err != nil {
+				log.Fatal(err)
 			}
 
-			lsb.WriteString(row + "\n")
+			if ok, row := acceptAllRowsChecker(result); ok {
+				chunkRowsCount += 1
+
+				if row == "" {
+					row = "\"" + (result["_id"]).(string) + "\","
+				}
+
+				lsb.WriteString(row + "\n")
+			}
 		}
+
+		start = start + size
+
+		if start+size > lastRecordInChunk {
+			size = lastRecordInChunk - start
+		}
+
+		cur.Close(ctx)
 	}
 
-	chunkKey := strconv.Itoa(start) + ":" + strconv.Itoa(start+size)
 	s.rowsCount[chunkKey] = chunkRowsCount
 	s.data[chunkKey] = lsb.String()
 

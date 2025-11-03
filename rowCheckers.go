@@ -26,6 +26,10 @@ func simpleRowChecker(row map[string]any) (bool, string) {
 	return false, ""
 }
 
+func acceptAllRowsChecker(row map[string]any) (bool, string) {
+	return true, ""
+}
+
 func shellExecRowChecker(row map[string]any) (bool, string) {
 	app := "echo"
 

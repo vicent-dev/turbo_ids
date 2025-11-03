@@ -3,3 +3,4 @@ data/
 exporter
 *.csv
 .vscode/
+turbo_ids
