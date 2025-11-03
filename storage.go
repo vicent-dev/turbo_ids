@@ -22,7 +22,6 @@ type storage struct {
 	db, collection string
 	baseCriteria   bson.D
 	rowsCount      map[string]int
-	data           map[string]string
 }
 
 func newStorage() (*storage, error) {
@@ -37,7 +36,6 @@ func newStorage() (*storage, error) {
 		db:           os.Getenv("MONGO_DB"),
 		collection:   os.Getenv("MONGO_COLLECTION"),
 		rowsCount:    make(map[string]int),
-		data:         make(map[string]string),
 		baseCriteria: bson.D{},
 	}
 
@@ -56,8 +54,10 @@ func (s *storage) getCount(ctx context.Context) (int64, error) {
 	return collection.CountDocuments(ctx, s.baseCriteria)
 }
 
-func (s *storage) extractChunk(ctx context.Context, start, chunkSize int, wg *sync.WaitGroup) error {
+func (s *storage) extractChunk(ctx context.Context, chunkSize int, wg *sync.WaitGroup, nThread int, fm *filesManager) error {
 	defer wg.Done()
+
+	start := chunkSize * nThread
 
 	lastRecordInChunk := start + chunkSize
 
@@ -69,13 +69,18 @@ func (s *storage) extractChunk(ctx context.Context, start, chunkSize int, wg *sy
 	collection := s.client.Database(s.db).Collection(s.collection)
 
 	size := int(float64(chunkSize) * 0.1) // 10% chunkSize = batch size
+
+	if size <= 0 {
+		size = chunkSize
+	}
+
 	size = min(size, MAX_BATCH_SIZE)
 
 	chunkKey := strconv.Itoa(start) + ":" + strconv.Itoa(lastRecordInChunk)
 
 	for size != 0 {
 		if os.Getenv("DEBUG_CHUNKS") == "true" {
-			alog.Info("chunk[%s] start: %d end: %d" , chunkKey , start, size)
+			alog.Info("chunk[%s] start: %d end: %d", chunkKey, start, size)
 		}
 
 		cur, err := collection.Find(
@@ -113,11 +118,13 @@ func (s *storage) extractChunk(ctx context.Context, start, chunkSize int, wg *sy
 			size = lastRecordInChunk - start
 		}
 
+		fm.writeInPartFile(lsb.String(), nThread)
+		lsb.Reset()
+
 		cur.Close(ctx)
 	}
 
 	s.rowsCount[chunkKey] = chunkRowsCount
-	s.data[chunkKey] = lsb.String()
 
 	return nil
 }
