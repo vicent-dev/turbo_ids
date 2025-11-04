@@ -5,7 +5,6 @@ import (
 	"flag"
 	"runtime"
 	"sync"
-	"time"
 
 	"github.com/en-vee/alog"
 )
@@ -19,18 +18,15 @@ func run() error {
 
 	flag.Parse()
 
-	s, err := newStorage()
+	nThreads := runtime.GOMAXPROCS(0) - 1
+
+	s, err := newStorage(nThreads)
 
 	if err != nil {
 		return err
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-
-	defer cancel()
-	defer s.disconnect(ctx)
-
-	nThreads := runtime.GOMAXPROCS(0)
+	ctx := context.TODO()
 
 	fm := newFilesManager(*directory, *filename, nThreads)
 
@@ -75,14 +71,8 @@ func processInBatches(ctx context.Context, s *storage, fm *filesManager) error {
 
 	wg.Wait()
 
-	fm.mergePartFiles()
+	totalRows, _ := fm.mergePartFiles()
 	fm.removePartFiles()
-
-	totalRows := 0
-
-	for _, r := range s.rowsCount {
-		totalRows += r
-	}
 
 	alog.Info("Count records exported: %d", totalRows)
 

@@ -21,11 +21,19 @@ type storage struct {
 	client         *mongo.Client
 	db, collection string
 	baseCriteria   bson.D
-	rowsCount      map[string]int
 }
 
-func newStorage() (*storage, error) {
-	client, err := mongo.Connect(options.Client().ApplyURI(os.Getenv("MONGO_CONNECTION")))
+func newStorage(poolSize int) (*storage, error) {
+
+	// configuration for a long-running process - never use this configuration in a live web service.
+	clientOpts := options.Client().
+		ApplyURI(os.Getenv("MONGO_CONNECTION")).
+		SetMinPoolSize(0).
+		SetMaxPoolSize(uint64(poolSize)).
+		SetServerSelectionTimeout(0).
+		SetConnectTimeout(0)
+
+	client, err := mongo.Connect(clientOpts)
 
 	if client == nil || err != nil {
 		return nil, errors.New("mongodb connection did not succeed")
@@ -35,7 +43,6 @@ func newStorage() (*storage, error) {
 		client:       client,
 		db:           os.Getenv("MONGO_DB"),
 		collection:   os.Getenv("MONGO_COLLECTION"),
-		rowsCount:    make(map[string]int),
 		baseCriteria: bson.D{},
 	}
 
@@ -62,7 +69,6 @@ func (s *storage) extractChunk(ctx context.Context, chunkSize int, wg *sync.Wait
 	lastRecordInChunk := start + chunkSize
 
 	alog.Info("Exporting records from %d to %d.", start, lastRecordInChunk)
-	chunkRowsCount := 0
 
 	var lsb strings.Builder
 
@@ -80,7 +86,7 @@ func (s *storage) extractChunk(ctx context.Context, chunkSize int, wg *sync.Wait
 
 	for size != 0 {
 		if os.Getenv("DEBUG_CHUNKS") == "true" {
-			alog.Info("chunk[%s] start: %d end: %d", chunkKey, start, size)
+			alog.Info("chunk[%s] start: %d size: %d", chunkKey, start, size)
 		}
 
 		cur, err := collection.Find(
@@ -102,10 +108,8 @@ func (s *storage) extractChunk(ctx context.Context, chunkSize int, wg *sync.Wait
 			}
 
 			if ok, row := acceptAllRowsChecker(result); ok {
-				chunkRowsCount += 1
-
 				if row == "" {
-					row = "\"" + (result["_id"]).(string) + "\","
+					row = "\"" + (result["_id"]).(bson.ObjectID).String() + "\","
 				}
 
 				lsb.WriteString(row + "\n")
@@ -124,7 +128,7 @@ func (s *storage) extractChunk(ctx context.Context, chunkSize int, wg *sync.Wait
 		cur.Close(ctx)
 	}
 
-	s.rowsCount[chunkKey] = chunkRowsCount
+	alog.Info("chunk[%s] processed", chunkKey)
 
 	return nil
 }

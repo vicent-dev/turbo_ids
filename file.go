@@ -69,8 +69,9 @@ func (fm *filesManager) writeInPartFile(fileContent string, nThread int) {
 	f.WriteString(fileContent)
 }
 
-func (fm *filesManager) mergePartFiles() error {
+func (fm *filesManager) mergePartFiles() (int, error) {
 	var err error
+	totalRows := 0
 
 	path := fmt.Sprintf("%s/%s_%d.csv",
 		fm.directory,
@@ -104,6 +105,8 @@ func (fm *filesManager) mergePartFiles() error {
 		scanner.Split(bufio.ScanLines)
 
 		for scanner.Scan() {
+			totalRows++
+
 			fm.mainFile.WriteString(scanner.Text() + "\n")
 		}
 
@@ -115,7 +118,7 @@ func (fm *filesManager) mergePartFiles() error {
 
 	}
 
-	return nil
+	return totalRows, nil
 }
 
 func (fm *filesManager) removePartFiles() {
