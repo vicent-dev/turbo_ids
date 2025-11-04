@@ -109,7 +109,7 @@ func (s *storage) extractChunk(ctx context.Context, chunkSize int, wg *sync.Wait
 
 			if ok, row := acceptAllRowsChecker(result); ok {
 				if row == "" {
-					row = "\"" + (result["_id"]).(bson.ObjectID).String() + "\","
+					row = "\"" + (result["_id"]).(string) + "\","
 				}
 
 				lsb.WriteString(row + "\n")
