@@ -20,7 +20,7 @@ const MAX_BATCH_SIZE = 100_000
 type storage struct {
 	client         *mongo.Client
 	db, collection string
-	baseCriteria   bson.D
+	baseCriteria   bson.M
 }
 
 func newStorage(poolSize int) (*storage, error) {
@@ -43,7 +43,7 @@ func newStorage(poolSize int) (*storage, error) {
 		client:       client,
 		db:           os.Getenv("MONGO_DB"),
 		collection:   os.Getenv("MONGO_COLLECTION"),
-		baseCriteria: bson.D{},
+		baseCriteria: bson.M{},
 	}
 
 	return s, nil
