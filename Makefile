@@ -1,6 +1,6 @@
 run:
-	go run turbo_ids -f=dump -d=data
+	go run cmd/cli/main.go -f=dump -d=data
 build:
-	go build turbo_ids
+	go build cmd/cli/main.go
 test:
 	go test turbo_ids -v

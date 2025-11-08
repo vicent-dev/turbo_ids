@@ -5,13 +5,16 @@ import (
 	"flag"
 	"runtime"
 	"sync"
+	"turbo_ids/pkg/env"
+	"turbo_ids/pkg/file"
+	"turbo_ids/pkg/storage"
 
 	"github.com/en-vee/alog"
 )
 
 func run() error {
 	// process flags and load env vars
-	loadEnv()
+	env.LoadEnv()
 
 	directory := flag.String("d", ".", "Directory to save the exported file")
 	filename := flag.String("f", "data", "Filename exported file")
@@ -20,7 +23,7 @@ func run() error {
 
 	nThreads := runtime.GOMAXPROCS(0) - 1
 
-	s, err := newStorage(nThreads)
+	s, err := storage.NewStorage(nThreads)
 
 	if err != nil {
 		return err
@@ -28,21 +31,21 @@ func run() error {
 
 	ctx := context.TODO()
 
-	fm := newFilesManager(*directory, *filename, nThreads)
+	fm := file.NewFilesManager(*directory, *filename, nThreads)
 
-	if err := processInBatches(ctx, s, fm); err != nil {
+	if err := processInBatches(ctx, s, fm, nThreads); err != nil {
 		return err
 	} else {
-		alog.Info("Data was exported: %s", fm.mainFilePath)
+		alog.Info("Data was exported: %s", fm.MainFilePath, nThreads)
 	}
 
 	return nil
 }
 
-func processInBatches(ctx context.Context, s *storage, fm *filesManager) error {
+func processInBatches(ctx context.Context, s *storage.Storage, fm *file.FilesManager, nThreads int) error {
 	wg := sync.WaitGroup{}
 
-	c64, err := s.getCount(ctx)
+	c64, err := s.GetCount(ctx)
 
 	c := int(c64)
 
@@ -55,24 +58,24 @@ func processInBatches(ctx context.Context, s *storage, fm *filesManager) error {
 		return err
 	}
 
-	linesPerChunk := c / fm.nThreads
+	linesPerChunk := c / nThreads
 
 	// for small exports we don't need more than one goroutines
 	if c < 100 {
 		linesPerChunk = c
 		wg.Add(1)
-		go s.extractChunk(ctx, linesPerChunk, &wg, 0, fm)
+		go s.ExtractChunk(ctx, linesPerChunk, &wg, 0, fm)
 	} else {
-		for i := 0; i <= fm.nThreads; i++ {
+		for i := 0; i <= nThreads; i++ {
 			wg.Add(1)
-			go s.extractChunk(ctx, linesPerChunk, &wg, i, fm)
+			go s.ExtractChunk(ctx, linesPerChunk, &wg, i, fm)
 		}
 	}
 
 	wg.Wait()
 
-	totalRows, _ := fm.mergePartFiles()
-	fm.removePartFiles()
+	totalRows, _ := fm.MergePartFiles()
+	fm.RemovePartFiles()
 
 	alog.Info("Count records exported: %d", totalRows)
 

@@ -1,4 +1,4 @@
-package main
+package storage
 
 import (
 	"context"
@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"turbo_ids/pkg/file"
 
 	"github.com/en-vee/alog"
 	"go.mongodb.org/mongo-driver/v2/bson"
@@ -17,13 +18,13 @@ import (
 
 const MAX_BATCH_SIZE = 100_000
 
-type storage struct {
+type Storage struct {
 	client         *mongo.Client
 	db, collection string
 	baseCriteria   bson.M
 }
 
-func newStorage(poolSize int) (*storage, error) {
+func NewStorage(poolSize int) (*Storage, error) {
 
 	// configuration for a long-running process - never use this configuration in a live web service.
 	clientOpts := options.Client().
@@ -39,7 +40,7 @@ func newStorage(poolSize int) (*storage, error) {
 		return nil, errors.New("mongodb connection did not succeed")
 	}
 
-	s := &storage{
+	s := &Storage{
 		client:       client,
 		db:           os.Getenv("MONGO_DB"),
 		collection:   os.Getenv("MONGO_COLLECTION"),
@@ -49,19 +50,19 @@ func newStorage(poolSize int) (*storage, error) {
 	return s, nil
 }
 
-func (s *storage) disconnect(ctx context.Context) {
+func (s *Storage) Disconnect(ctx context.Context) {
 	if err := s.client.Disconnect(ctx); err != nil {
 		panic(err)
 	}
 }
 
-func (s *storage) getCount(ctx context.Context) (int64, error) {
+func (s *Storage) GetCount(ctx context.Context) (int64, error) {
 	collection := s.client.Database(s.db).Collection(s.collection)
 
 	return collection.CountDocuments(ctx, s.baseCriteria)
 }
 
-func (s *storage) extractChunk(ctx context.Context, chunkSize int, wg *sync.WaitGroup, nThread int, fm *filesManager) error {
+func (s *Storage) ExtractChunk(ctx context.Context, chunkSize int, wg *sync.WaitGroup, nThread int, fm *file.FilesManager) error {
 	defer wg.Done()
 
 	start := chunkSize * nThread
@@ -122,7 +123,7 @@ func (s *storage) extractChunk(ctx context.Context, chunkSize int, wg *sync.Wait
 			size = lastRecordInChunk - start
 		}
 
-		fm.writeInPartFile(lsb.String(), nThread)
+		fm.WriteInPartFile(lsb.String(), nThread)
 		lsb.Reset()
 
 		cur.Close(ctx)

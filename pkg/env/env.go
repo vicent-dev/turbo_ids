@@ -1,11 +1,11 @@
-package main
+package env
 
 import (
 	"github.com/en-vee/alog"
 	"github.com/joho/godotenv"
 )
 
-func loadEnv() {
+func LoadEnv() {
 	err := godotenv.Load(".env")
 
 	if err != nil {

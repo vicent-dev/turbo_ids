@@ -1,4 +1,4 @@
-package main
+package file
 
 import (
 	"bufio"
@@ -9,17 +9,17 @@ import (
 	"github.com/en-vee/alog"
 )
 
-type filesManager struct {
+type FilesManager struct {
 	mainFile     *os.File
-	mainFilePath string
+	MainFilePath string
 	directory    string
 	filename     string
 	time         int64
 	nThreads     int
 }
 
-func newFilesManager(directory string, filename string, nThreads int) *filesManager {
-	fm := filesManager{
+func NewFilesManager(directory string, filename string, nThreads int) *FilesManager {
+	fm := FilesManager{
 		directory: directory,
 		filename:  filename,
 		time:      time.Now().Unix(),
@@ -48,7 +48,7 @@ func newFilesManager(directory string, filename string, nThreads int) *filesMana
 	return &fm
 }
 
-func (fm *filesManager) writeInPartFile(fileContent string, nThread int) {
+func (fm *FilesManager) WriteInPartFile(fileContent string, nThread int) {
 
 	f, err := os.OpenFile(
 		fmt.Sprintf("%s/%s_%d_part_%d.csv",
@@ -69,7 +69,7 @@ func (fm *filesManager) writeInPartFile(fileContent string, nThread int) {
 	f.WriteString(fileContent)
 }
 
-func (fm *filesManager) mergePartFiles() (int, error) {
+func (fm *FilesManager) MergePartFiles() (int, error) {
 	var err error
 	totalRows := 0
 
@@ -79,7 +79,7 @@ func (fm *filesManager) mergePartFiles() (int, error) {
 		fm.time,
 	)
 
-	fm.mainFilePath = path
+	fm.MainFilePath = path
 	fm.mainFile, err = os.Create(path)
 	defer fm.mainFile.Close()
 
@@ -121,7 +121,7 @@ func (fm *filesManager) mergePartFiles() (int, error) {
 	return totalRows, nil
 }
 
-func (fm *filesManager) removePartFiles() {
+func (fm *FilesManager) RemovePartFiles() {
 	for i := 0; i <= fm.nThreads; i++ {
 		err := os.Remove(
 			fmt.Sprintf("%s/%s_%d_part_%d.csv",
