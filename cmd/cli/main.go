@@ -36,7 +36,7 @@ func run() error {
 	if err := processInBatches(ctx, s, fm, nThreads); err != nil {
 		return err
 	} else {
-		alog.Info("Data was exported: %s", fm.MainFilePath, nThreads)
+		alog.Info("Data was exported: %s", fm.MainFilePath)
 	}
 
 	return nil

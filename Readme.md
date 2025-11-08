@@ -10,6 +10,7 @@ Multi thread tool to export mongodb data based on row checker.
 
 ## Instructions:
 - Add base criteria search in storage constructor (`pkg/storage/storage::NewStorage` function) if needed
+- Create a new model if needed `pkg/storage/models.go` and change decoding in `pkg/storage/storage.go:105`
 - Add new function in `pkg/storage/rowCheckers.go`
 - Modify `pkg/storage/storage.go:111` were the rows are processed.
 - Build and run

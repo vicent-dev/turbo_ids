@@ -102,7 +102,7 @@ func (s *Storage) ExtractChunk(ctx context.Context, chunkSize int, wg *sync.Wait
 		}
 
 		for cur.Next(ctx) {
-			var result map[string]any
+			var result Room // modify here with the proper model
 
 			if err := cur.Decode(&result); err != nil {
 				log.Fatal(err)
@@ -110,7 +110,7 @@ func (s *Storage) ExtractChunk(ctx context.Context, chunkSize int, wg *sync.Wait
 
 			if ok, row := acceptAllRowsChecker(result); ok {
 				if row == "" {
-					row = "\"" + (result["_id"]).(string) + "\","
+					row = "\"" + result.String() + "\","
 				}
 
 				lsb.WriteString(row + "\n")
