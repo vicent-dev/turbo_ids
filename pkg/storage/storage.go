@@ -108,12 +108,8 @@ func (s *Storage) ExtractChunk(ctx context.Context, chunkSize int, wg *sync.Wait
 				log.Fatal(err)
 			}
 
-			if ok, row := acceptAllRowsChecker(result); ok {
-				if row == "" {
-					row = "\"" + result.String() + "\","
-				}
-
-				lsb.WriteString(row + "\n")
+			if ok := result.IsValid(); ok {
+				lsb.WriteString(result.String() + "\n")
 			}
 		}
 

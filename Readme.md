@@ -9,10 +9,13 @@ Multi thread tool to export mongodb data based on row checker.
 ![diagram](docs/diagram.png)
 
 ## Instructions:
-- Add base criteria search in storage constructor (`pkg/storage/storage::NewStorage` function) if needed
-- Create a new model if needed `pkg/storage/models.go` and change decoding in `pkg/storage/storage.go:105`
-- Add new function in `pkg/storage/rowCheckers.go`
-- Modify `pkg/storage/storage.go:111` were the rows are processed.
+- Add base criteria search in storage constructor (`pkg/storage/storage::NewStorage`) if needed
+
+- Create a new model  `pkg/storage/model.go` implementing Row interface:
+    - `IsValid()` is the method where you have to put the row checker.
+    - `String()` will contain the serialization of your model into the csv.
+
+- Change the type of row object container in  `pkg/storage/storage.go:105`.
 - Build and run
 
 
